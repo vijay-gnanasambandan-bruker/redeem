@@ -6,17 +6,14 @@ use redeem_properties::models::model_interface::ModelInterface;
 use redeem_properties::models::rt_cnn_lstm_model::RTCNNLSTMModel;
 use redeem_properties::models::rt_cnn_transformer_model::RTCNNTFModel;
 use redeem_properties::utils::data_handling::{PeptideData, TargetNormalization};
-use redeem_properties::utils::peptdeep_utils::{load_modifications, MODIFICATION_MAP};
+use redeem_properties::utils::peptdeep_utils::{MODIFICATION_MAP, load_modifications};
 use redeem_properties::utils::utils::get_device;
-use report_builder::{
-    Report, ReportSection,
-    plots::plot_scatter,
-};
+use report_builder::{Report, ReportSection, plots::plot_scatter};
 
 use crate::properties::inference::input::PropertyInferenceConfig;
 use crate::properties::inference::output::write_peptide_data;
-use crate::properties::train::sample_peptides;
 use crate::properties::load_data::load_peptide_data;
+use crate::properties::train::sample_peptides;
 use crate::properties::util::write_bytes_to_file;
 
 pub fn run_inference(config: &PropertyInferenceConfig) -> Result<()> {
@@ -125,38 +122,39 @@ pub fn run_inference(config: &PropertyInferenceConfig) -> Result<()> {
         let (true_rt, pred_rt): (Vec<f64>, Vec<f64>) = inference_data_sampled
             .iter()
             .zip(&inference_results)
-            .filter_map(|(true_pep, pred_pep)| {
-                match normalize_field {
-                    "ccs" => {
-                        match (true_pep.ccs, pred_pep.ccs) {
-                            (Some(t), Some(p)) => {
-                                let t_denorm = match norm_factor {
-                                    TargetNormalization::ZScore(mean, std) => t as f64 * std as f64 + mean as f64,
-                                    TargetNormalization::MinMax(min, range) => t as f64 * range as f64 + min as f64,
-                                    TargetNormalization::None => t as f64,
-                                };
-                                Some((t_denorm, p as f64))
+            .filter_map(|(true_pep, pred_pep)| match normalize_field {
+                "ccs" => match (true_pep.ccs, pred_pep.ccs) {
+                    (Some(t), Some(p)) => {
+                        let t_denorm = match norm_factor {
+                            TargetNormalization::ZScore(mean, std) => {
+                                t as f64 * std as f64 + mean as f64
                             }
-                            _ => None,
-                        }
-                    },
-                    _ => {
-                        match (true_pep.retention_time, pred_pep.retention_time) {
-                        (Some(t), Some(p)) => {
-                            let t_denorm = match norm_factor {
-                                TargetNormalization::ZScore(mean, std) => t as f64 * std as f64 + mean as f64,
-                                TargetNormalization::MinMax(min, range) => t as f64 * range as f64 + min as f64,
-                                TargetNormalization::None => t as f64,
-                            };
-                            Some((t_denorm, p as f64))
-                        }
-                        _ => None,
+                            TargetNormalization::MinMax(min, range) => {
+                                t as f64 * range as f64 + min as f64
+                            }
+                            TargetNormalization::None => t as f64,
+                        };
+                        Some((t_denorm, p as f64))
                     }
-                }
-                }
+                    _ => None,
+                },
+                _ => match (true_pep.retention_time, pred_pep.retention_time) {
+                    (Some(t), Some(p)) => {
+                        let t_denorm = match norm_factor {
+                            TargetNormalization::ZScore(mean, std) => {
+                                t as f64 * std as f64 + mean as f64
+                            }
+                            TargetNormalization::MinMax(min, range) => {
+                                t as f64 * range as f64 + min as f64
+                            }
+                            TargetNormalization::None => t as f64,
+                        };
+                        Some((t_denorm, p as f64))
+                    }
+                    _ => None,
+                },
             })
             .unzip();
-        
 
         let scatter_plot = plot_scatter(
             &vec![true_rt.clone()],
@@ -171,7 +169,6 @@ pub fn run_inference(config: &PropertyInferenceConfig) -> Result<()> {
 
         report.add_section(overview_section);
     }
-
 
     /* Section 2: Configuration */
     {

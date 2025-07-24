@@ -1,10 +1,9 @@
-use ndarray::Array2;
 use gbdt::config::Config;
 use gbdt::decision_tree::{Data, DataVec, PredVec};
 use gbdt::gradient_boost::GBDT;
+use ndarray::Array2;
 
-
-use crate::models::utils::{ModelType, ModelParams};
+use crate::models::utils::{ModelParams, ModelType};
 use crate::psm_scorer::SemiSupervisedModel;
 
 /// Gradient Boosting Decision Tree (GBDT) classifier
@@ -31,24 +30,24 @@ impl SemiSupervisedModel for GBDTClassifier {
         _y_eval: Option<&[i32]>,
     ) {
         let feature_size = x.ncols();
-        
+
         if let ModelType::GBDT {
             max_depth,
             num_boost_round,
             debug,
             training_optimization_level,
             loss_type,
-        } = &self.params.model_type {
+        } = &self.params.model_type
+        {
             let mut config = Config::new();
-            
+
             config.set_feature_size(feature_size);
             config.set_shrinkage(self.params.learning_rate);
             config.set_max_depth(*max_depth);
             config.set_iterations(*num_boost_round as usize);
             config.set_debug(*debug);
             config.set_training_optimization_level(*training_optimization_level);
-            config.set_loss(loss_type); 
-
+            config.set_loss(loss_type);
 
             let mut gbdt = GBDT::new(&config);
 
@@ -66,9 +65,11 @@ impl SemiSupervisedModel for GBDTClassifier {
 
             self.model = Some(gbdt);
         } else {
-            panic!("Error: Expected ModelType::GBDT params, got {:?}", self.params.model_type);
+            panic!(
+                "Error: Expected ModelType::GBDT params, got {:?}",
+                self.params.model_type
+            );
         }
-        
     }
 
     fn predict(&self, x: &Array2<f32>) -> Vec<f32> {
@@ -88,7 +89,6 @@ impl SemiSupervisedModel for GBDTClassifier {
         self.predict(x)
     }
 }
-
 
 #[cfg(test)]
 mod tests {
@@ -144,6 +144,5 @@ mod tests {
 
         // Check that predictions are reasonable
         // assert_eq!(predictions.len(), y.len());
-
     }
 }

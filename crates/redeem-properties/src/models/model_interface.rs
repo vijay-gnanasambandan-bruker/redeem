@@ -465,7 +465,7 @@ pub trait ModelInterface: Send + Sync + ModelClone {
     /// This method initializes model weights from scratch and trains over the given peptide feature data for a specified
     /// number of epochs. Optionally performs validation and tracks both training and validation loss statistics.
     /// Early stopping is applied if the validation loss does not improve for a consecutive number of epochs.
-    /// 
+    ///
     /// A Cosine Annealing with Warmup learning rate scheduler is used to adjust the learning rate during training. The initial warmup period is set to 10% of the total training steps.
     ///
     /// # Arguments
@@ -496,13 +496,13 @@ pub trait ModelInterface: Send + Sync + ModelClone {
         learning_rate: f64,
         epochs: usize,
         early_stopping_patience: usize,
-        context: &str, 
+        context: &str,
         save_checkpoints: bool,
         track_metrics: bool,
     ) -> Result<TrainingStepMetrics> {
         let num_batches = (training_data.len() + batch_size - 1) / batch_size;
         let total_steps = num_batches * epochs;
-        let warmup_steps = total_steps / 10; 
+        let warmup_steps = total_steps / 10;
 
         info!(
             "{} {} model on {} peptide features ({} batches) for {} epochs",
@@ -575,7 +575,7 @@ pub trait ModelInterface: Send + Sync + ModelClone {
                         _ => None,
                     };
 
-                    if track_metrics{
+                    if track_metrics {
                         step_metrics.epochs.push(epoch);
                         step_metrics.steps.push(step_idx);
                         step_metrics
@@ -588,7 +588,6 @@ pub trait ModelInterface: Send + Sync + ModelClone {
                         step_metrics.recalls.push(None);
                         step_idx += 1;
                     }
-                    
 
                     progress.update_description(&format!(
                         "[{}] Epoch {}: Loss: {:.4}",
@@ -643,7 +642,7 @@ pub trait ModelInterface: Send + Sync + ModelClone {
                     })
                     .collect::<Result<_>>()?;
 
-                if track_metrics{
+                if track_metrics {
                     for (val_loss, idx, lr, acc) in &val_results {
                         step_metrics.epochs.push(epoch);
                         step_metrics.steps.push(val_step_idx + idx);
@@ -678,7 +677,7 @@ pub trait ModelInterface: Send + Sync + ModelClone {
                 if avg_val_loss < best_val_loss {
                     best_val_loss = avg_val_loss;
                     epochs_without_improvement = 0;
-                    if save_checkpoints{
+                    if save_checkpoints {
                         self.save_epoch_checkpoint(epoch, "val")?;
                     }
                 } else {
@@ -687,7 +686,7 @@ pub trait ModelInterface: Send + Sync + ModelClone {
                         info!("Early stopping triggered after {} epochs without validation loss improvement.", early_stopping_patience);
                         return Ok(step_metrics);
                     }
-                    if save_checkpoints{
+                    if save_checkpoints {
                         self.save_epoch_checkpoint(epoch, "train")?;
                     }
                 }
@@ -698,7 +697,7 @@ pub trait ModelInterface: Send + Sync + ModelClone {
                     epoch, avg_loss, std_loss
                 ));
                 progress.finish();
-                if save_checkpoints{
+                if save_checkpoints {
                     self.save_epoch_checkpoint(epoch, "train")?;
                 }
             }
@@ -754,22 +753,22 @@ pub trait ModelInterface: Send + Sync + ModelClone {
             inference_data.len(),
             num_batches
         );
-    
+
         let progress = Progress::new(inference_data.len(), "[inference] Batch:");
         let mut result: Vec<Option<PeptideData>> = vec![None; inference_data.len()];
-    
+
         inference_data
             .par_chunks(batch_size)
             .enumerate()
             .map(|(batch_idx, batch_data)| {
                 let start_idx = batch_idx * batch_size;
-    
+
                 // Extract input features only (ignore targets)
                 let (input_tensor, _) = self.prepare_batch_inputs(batch_data, &modifications)?;
                 let predicted = self.forward(&input_tensor)?;
-    
+
                 let predictions = predicted.to_vec1::<f32>()?;
-    
+
                 let updated = predictions
                     .into_iter()
                     .enumerate()
@@ -788,7 +787,7 @@ pub trait ModelInterface: Send + Sync + ModelClone {
                         (start_idx + i, peptide)
                     })
                     .collect::<Vec<_>>();
-    
+
                 Ok(updated)
             })
             .collect::<Result<Vec<Vec<(usize, PeptideData)>>>>()?
@@ -798,11 +797,10 @@ pub trait ModelInterface: Send + Sync + ModelClone {
                 result[idx] = Some(peptide);
                 progress.inc();
             });
-    
+
         progress.finish();
         Ok(result.into_iter().flatten().collect())
-    }  
-    
+    }
 
     /// Extract encoded input and target tensor for a batch of peptides.
     fn prepare_batch_inputs(
@@ -851,11 +849,7 @@ pub trait ModelInterface: Send + Sync + ModelClone {
                 Tensor::new(target_values, &self.get_device())?
             }
             PropertyType::CCS => {
-                let target_values: Vec<f32> = batch
-                    .ccs
-                    .iter()
-                    .map(|v| v.unwrap_or(0.0))
-                    .collect();
+                let target_values: Vec<f32> = batch.ccs.iter().map(|v| v.unwrap_or(0.0)).collect();
                 Tensor::new(target_values, &self.get_device())?
             }
             PropertyType::MS2 => {

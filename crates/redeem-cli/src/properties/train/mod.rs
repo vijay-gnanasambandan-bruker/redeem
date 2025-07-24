@@ -1,6 +1,6 @@
 pub mod input;
-pub mod trainer;
 pub mod plot;
+pub mod trainer;
 
 use rand::seq::SliceRandom;
 use rand::thread_rng;

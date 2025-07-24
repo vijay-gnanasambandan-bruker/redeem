@@ -31,7 +31,11 @@ pub struct Experiment {
 }
 
 impl Experiment {
-    pub fn new(x: Array2<f32>, y: Array1<i32>, psm_metadata: PsmMetadata) -> Result<Self, ExperimentError> {
+    pub fn new(
+        x: Array2<f32>,
+        y: Array1<i32>,
+        psm_metadata: PsmMetadata,
+    ) -> Result<Self, ExperimentError> {
         let n_samples = x.nrows();
 
         // Validate dimensions
@@ -42,30 +46,32 @@ impl Experiment {
         // Check classes
         let has_target = y.iter().any(|&label| label == 1);
         let has_decoy = y.iter().any(|&label| label == -1);
-        
+
         match (has_target, has_decoy) {
             (false, false) => return Err(ExperimentError::SingleClass(true)), // Arbitrary
             (true, false) => return Err(ExperimentError::SingleClass(true)),
             (false, true) => return Err(ExperimentError::SingleClass(false)),
             (true, true) => (), // Continue
         }
-        
-        Ok(
-            Experiment {
-                x,
-                y,
-                is_train: Array1::from_elem(n_samples, false),
-                is_top_peak: Array1::from_elem(n_samples, false),
-                tg_num_id: Array1::from_elem(n_samples, 0),
-                classifier_score: Array1::from_elem(n_samples, 0.0),
-                psm_metadata,
-            }
-        )
+
+        Ok(Experiment {
+            x,
+            y,
+            is_train: Array1::from_elem(n_samples, false),
+            is_top_peak: Array1::from_elem(n_samples, false),
+            tg_num_id: Array1::from_elem(n_samples, 0),
+            classifier_score: Array1::from_elem(n_samples, 0.0),
+            psm_metadata,
+        })
     }
 
     pub fn log_input_data_summary(&self) {
         println!("----- Input Data Summary -----");
-        println!("Info: {} Target PSMs and {} Decoy PSMs", self.y.iter().filter(|&&v| v == 1).count(), self.y.iter().filter(|&&v| v == -1).count());
+        println!(
+            "Info: {} Target PSMs and {} Decoy PSMs",
+            self.y.iter().filter(|&&v| v == 1).count(),
+            self.y.iter().filter(|&&v| v == -1).count()
+        );
         println!("Info: {} feature scores (columns)", self.x.ncols());
         println!("-------------------------------");
     }
@@ -99,9 +105,9 @@ impl Experiment {
                 if let TdcError::NaNFound(n) = e { n } else { 0 }
             );
         });
-        
+
         let unlabeled = (&qvals.mapv(|v| v > eval_fdr)) & targets;
-        
+
         let mut new_labels = Array1::ones(qvals.len());
         for (i, &target) in targets.iter().enumerate() {
             if !target {
@@ -110,7 +116,7 @@ impl Experiment {
                 new_labels[i] = 0;
             }
         }
-        
+
         new_labels
     }
 
@@ -202,22 +208,20 @@ impl Experiment {
         Ok(rank_u32)
     }
 
-
     pub fn get_top_test_peaks(&self) -> Experiment {
         let mask = &self.is_train.mapv(|x| !x) & &self.is_top_peak;
         self.filter(&mask)
     }
-    
 
     pub fn get_decoy_peaks(&self) -> Experiment {
         // Sage represents decoy peaks as -1
-        let mask = &self.y.mapv(|v| v == -1);  
+        let mask = &self.y.mapv(|v| v == -1);
         self.filter(mask)
     }
 
     pub fn get_target_peaks(&self) -> Experiment {
         // Sage represents target peaks as 1
-        let mask = &self.y.mapv(|v| v != 1);  
+        let mask = &self.y.mapv(|v| v != 1);
         self.filter(mask)
     }
 
@@ -225,7 +229,7 @@ impl Experiment {
         let mask = &self.y.mapv(|v| v == 0) & &self.is_top_peak;
         self.filter(&mask)
     }
-    
+
     pub fn get_top_target_peaks(&self) -> Experiment {
         let mask = &self.y.mapv(|v| v != 0) & &self.is_top_peak;
         self.filter(&mask)
@@ -278,13 +282,12 @@ impl Experiment {
             },
         }
     }
-    
 
     pub fn split_for_xval(&mut self, fraction: f32, is_test: bool) {
         let mut rng = thread_rng();
         let n_samples = self.x.nrows();
         let mut indices: Vec<usize> = (0..n_samples).collect();
-        
+
         if !is_test {
             indices.shuffle(&mut rng);
         } else {
@@ -298,15 +301,15 @@ impl Experiment {
     }
 
     pub fn get_train_psms(&self) -> Experiment {
-        let mask = &self.is_train;  
+        let mask = &self.is_train;
         self.filter(mask)
     }
 
     pub fn get_test_psms(&self) -> Experiment {
-        let mask = &self.is_train.mapv(|x| !x);  
+        let mask = &self.is_train.mapv(|x| !x);
         self.filter(mask)
     }
-    
+
     pub fn remove_psms(&mut self, indices_to_remove: &[usize]) {
         let keep = (0..self.x.nrows())
             .filter(|&i| !indices_to_remove.contains(&i))
@@ -320,4 +323,3 @@ impl Experiment {
         self.classifier_score = self.classifier_score.select(Axis(0), &keep);
     }
 }
-

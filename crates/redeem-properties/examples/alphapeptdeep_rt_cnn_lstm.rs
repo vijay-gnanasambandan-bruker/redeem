@@ -74,7 +74,8 @@ fn run_prediction(model: &mut RTCNNLSTMModel, batch_data: &[PeptideData]) -> Res
 fn main() -> Result<()> {
     env_logger::init();
 
-    let model_path = PathBuf::from("/home/singjc/Documents/github/redeem/rt_fine_tuned.safetensors");
+    let model_path =
+        PathBuf::from("/home/singjc/Documents/github/redeem/rt_fine_tuned.safetensors");
     let constants_path = PathBuf::from("/home/singjc/Documents/github/redeem/crates/redeem-properties/data/models/alphapeptdeep/generic/rt.pth.model_const.yaml");
     let device = Device::new_cuda(0).unwrap_or(Device::Cpu);
     println!("Device: {:?}", device);

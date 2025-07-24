@@ -8,10 +8,7 @@ use redeem_properties::models::{
 use redeem_properties::utils::data_handling::{PeptideData, TargetNormalization};
 use redeem_properties::utils::peptdeep_utils::load_modifications;
 use redeem_properties::utils::utils::get_device;
-use report_builder::{
-    Report, ReportSection,
-    plots::plot_scatter,
-};
+use report_builder::{Report, ReportSection, plots::plot_scatter};
 
 use crate::properties::load_data;
 use crate::properties::train::plot::{plot_losses, plot_training_metric};
@@ -134,19 +131,21 @@ pub fn run_training(config: &PropertyTrainConfig) -> Result<()> {
 
     let start_time = std::time::Instant::now();
     log::trace!("Training started");
-    let train_step_metrics = model.train(
-        &train_peptides,
-        val_peptides.as_ref(),
-        modifications.clone(),
-        config.batch_size,
-        config.validation_batch_size.unwrap_or(config.batch_size),
-        config.learning_rate as f64,
-        config.epochs,
-        config.early_stopping_patience,
-        "training",
-        true, 
-        true
-    ).with_context(|| "Training failed: an error occurred during the model training process")?;
+    let train_step_metrics = model
+        .train(
+            &train_peptides,
+            val_peptides.as_ref(),
+            modifications.clone(),
+            config.batch_size,
+            config.validation_batch_size.unwrap_or(config.batch_size),
+            config.learning_rate as f64,
+            config.epochs,
+            config.early_stopping_patience,
+            "training",
+            true,
+            true,
+        )
+        .with_context(|| "Training failed: an error occurred during the model training process")?;
     log::info!("Training completed in {:?}", start_time.elapsed());
     model.save(&config.output_file)?;
     log::info!("Model saved to: {}", config.output_file);
@@ -214,36 +213,39 @@ pub fn run_training(config: &PropertyTrainConfig) -> Result<()> {
                     match (true_pep.ccs, pred_pep.ccs) {
                         (Some(t), Some(p)) => {
                             let t_denorm = match norm_factor {
-                                TargetNormalization::ZScore(mean, std) => t as f64 * std as f64 + mean as f64,
-                                TargetNormalization::MinMax(min, range) => t as f64 * range as f64 + min as f64,
+                                TargetNormalization::ZScore(mean, std) => {
+                                    t as f64 * std as f64 + mean as f64
+                                }
+                                TargetNormalization::MinMax(min, range) => {
+                                    t as f64 * range as f64 + min as f64
+                                }
                                 TargetNormalization::None => t as f64,
                             };
                             Some((t_denorm, p as f64))
                         }
                         _ => None,
-                  
                     }
-                }
-                else if config.model_arch == "rt_cnn_lstm" || config.model_arch == "rt_cnn_tf" {
+                } else if config.model_arch == "rt_cnn_lstm" || config.model_arch == "rt_cnn_tf" {
                     match (true_pep.retention_time, pred_pep.retention_time) {
                         (Some(t), Some(p)) => {
                             let t_denorm = match norm_factor {
-                                TargetNormalization::ZScore(mean, std) => t as f64 * std as f64 + mean as f64,
-                                TargetNormalization::MinMax(min, range) => t as f64 * range as f64 + min as f64,
+                                TargetNormalization::ZScore(mean, std) => {
+                                    t as f64 * std as f64 + mean as f64
+                                }
+                                TargetNormalization::MinMax(min, range) => {
+                                    t as f64 * range as f64 + min as f64
+                                }
                                 TargetNormalization::None => t as f64,
                             };
                             Some((t_denorm, p as f64))
                         }
                         _ => None,
-                  
                     }
                 } else {
                     return None;
                 }
-                
             })
             .unzip();
-        
 
         let scatter_plot = plot_scatter(
             &vec![true_rt.clone()],
@@ -258,7 +260,6 @@ pub fn run_training(config: &PropertyTrainConfig) -> Result<()> {
 
         report.add_section(overview_section);
     }
-
 
     /* Section 2: Configuration */
     {

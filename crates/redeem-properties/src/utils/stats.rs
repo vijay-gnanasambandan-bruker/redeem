@@ -59,8 +59,14 @@ impl TrainingStepMetrics {
 
         for i in 0..self.epochs.len() {
             match self.phases[i] {
-                TrainingPhase::Train => train_map.entry(self.epochs[i]).or_default().push(self.losses[i]),
-                TrainingPhase::Validation => val_map.entry(self.epochs[i]).or_default().push(self.losses[i]),
+                TrainingPhase::Train => train_map
+                    .entry(self.epochs[i])
+                    .or_default()
+                    .push(self.losses[i]),
+                TrainingPhase::Validation => val_map
+                    .entry(self.epochs[i])
+                    .or_default()
+                    .push(self.losses[i]),
             }
         }
 
@@ -71,10 +77,12 @@ impl TrainingStepMetrics {
         epochs
             .into_iter()
             .map(|epoch| {
-                let (avg_train, std_train) = train_map.get(&epoch)
+                let (avg_train, std_train) = train_map
+                    .get(&epoch)
                     .map(|v| compute_loss_stats(v))
                     .unwrap_or((f32::NAN, f32::NAN));
-                let (avg_val, std_val) = val_map.get(&epoch)
+                let (avg_val, std_val) = val_map
+                    .get(&epoch)
                     .map(|v| compute_loss_stats(v))
                     .map_or((None, None), |(avg, std)| (Some(avg), Some(std)));
 
@@ -159,14 +167,17 @@ impl TrainingStepMetrics {
     }
 }
 
-
 /// Utility functions for evaluating prediction metrics.
 pub struct Metrics;
 
 impl Metrics {
     /// Computes accuracy as the proportion of predictions within a tolerance of the target.
     pub fn accuracy(pred: &[f32], target: &[f32], tolerance: f32) -> f32 {
-        let correct = pred.iter().zip(target).filter(|(p, t)| (*p - *t).abs() <= tolerance).count();
+        let correct = pred
+            .iter()
+            .zip(target)
+            .filter(|(p, t)| (*p - *t).abs() <= tolerance)
+            .count();
         correct as f32 / pred.len() as f32
     }
 
@@ -176,9 +187,10 @@ impl Metrics {
             .zip(target)
             .zip(tolerance)
             .filter(|((p, t), tol)| (*p - *t).abs() <= **tol)
-            .count() as f32 / pred.len() as f32
+            .count() as f32
+            / pred.len() as f32
     }
-   
+
     /// Computes precision as TP / (TP + FP), based on a binary threshold.
     pub fn precision(pred: &[f32], target: &[f32], threshold: f32) -> Option<f32> {
         let mut tp = 0;
@@ -220,11 +232,8 @@ impl Metrics {
     }
 }
 
-
 /// Compute average and std deviation from a slice of loss values.
-pub fn compute_loss_stats(losses: &[f32]) -> (f32, f32) 
-{
-    
+pub fn compute_loss_stats(losses: &[f32]) -> (f32, f32) {
     let avg = losses.iter().copied().sum::<f32>() / losses.len() as f32;
     let std = (losses.iter().map(|l| (l - avg).powi(2)).sum::<f32>() / losses.len() as f32).sqrt();
     (avg, std)

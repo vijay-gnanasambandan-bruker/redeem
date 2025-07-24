@@ -6,8 +6,8 @@ use std::fs::File;
 use std::io::{BufReader, Write};
 
 use redeem_classifiers::data_handling::PsmMetadata;
-use redeem_classifiers::psm_scorer::SemiSupervisedLearner;
 use redeem_classifiers::models::utils::ModelType;
+use redeem_classifiers::psm_scorer::SemiSupervisedLearner;
 
 /// Load a test PSM CSV file into feature matrix, labels, and metadata.
 ///
@@ -93,21 +93,15 @@ pub fn load_test_psm_csv(path: &str) -> Result<(Array2<f32>, Array1<i32>, PsmMet
 
 #[cfg(feature = "linfa")]
 fn run_psm_scorer(x: &Array2<f32>, y: &Array1<i32>, metadata: &PsmMetadata) -> Result<Array1<f32>> {
-    let params = ModelType::SVM  {
+    let params = ModelType::SVM {
         eps: 0.1,
         c: (1.0, 1.0),
         kernel: "linear".to_string(),
         gaussian_kernel_eps: 0.1,
         polynomial_kernel_constant: 1.0,
-        polynomial_kernel_degree: 3.0
+        polynomial_kernel_degree: 3.0,
     };
-    let mut learner = SemiSupervisedLearner::new(
-        params,
-        0.001,
-        1.0,
-        500,
-        Some((0.15, 1.0))
-    );
+    let mut learner = SemiSupervisedLearner::new(params, 0.001, 1.0, 500, Some((0.15, 1.0)));
     let predictions = learner.fit(x, y.clone(), metadata);
     Ok(predictions)
 }

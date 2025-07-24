@@ -8,13 +8,13 @@ use std::sync::Arc;
 use crate::building_blocks::building_blocks::{
     DecoderLinear, Encoder26aaModCnnTransformerAttnSum, MOD_FEATURE_SIZE,
 };
-use crate::models::model_interface::{ModelInterface, PropertyType, load_tensors_from_model, create_var_map};
+use crate::models::model_interface::{
+    create_var_map, load_tensors_from_model, ModelInterface, PropertyType,
+};
 use crate::utils::peptdeep_utils::{
-    load_mod_to_feature_arc,
-    parse_model_constants, ModelConstants,
+    load_mod_to_feature_arc, parse_model_constants, ModelConstants,
 };
 use crate::utils::utils::get_tensor_stats;
-
 
 // Main Model Struct
 
@@ -44,7 +44,7 @@ impl ModelInterface for RTCNNTFModel {
     }
 
     fn model_arch(&self) -> &'static str {
-        "rt_cnn_tf"   
+        "rt_cnn_tf"
     }
 
     /// Create a new RTCNNTFModel to train
@@ -55,14 +55,14 @@ impl ModelInterface for RTCNNTFModel {
         log::trace!("[RTCNNTFModel] Initializing rt_encoder");
         let rt_encoder = Encoder26aaModCnnTransformerAttnSum::new(
             &varbuilder.pp("rt_encoder"),
-            8,     // mod_hidden_dim
-            128,   // hidden_dim
-            256,   // ff_dim
-            4,     // num_heads
-            2,     // num_layers
-            100,   // max_len
-            0.1,   // dropout_prob
-            &device
+            8,   // mod_hidden_dim
+            128, // hidden_dim
+            256, // ff_dim
+            4,   // num_heads
+            2,   // num_layers
+            100, // max_len
+            0.1, // dropout_prob
+            &device,
         )?;
 
         log::trace!("[RTCNNTFModel] Initializing rt_decoder");
@@ -109,13 +109,13 @@ impl ModelInterface for RTCNNTFModel {
 
         let rt_encoder = Encoder26aaModCnnTransformerAttnSum::from_varstore(
             &var_store,
-            8,      // mod_hidden_dim
-            128,    // hidden_dim
-            256,    // ff_dim
-            4,      // num_heads
-            2,      // num_layers
-            100,    // max_len (sequence length)
-            0.1,    // dropout_prob
+            8,   // mod_hidden_dim
+            128, // hidden_dim
+            256, // ff_dim
+            4,   // num_heads
+            2,   // num_layers
+            100, // max_len (sequence length)
+            0.1, // dropout_prob
             vec!["rt_encoder.mod_nn.nn.weight"],
             vec![
                 "rt_encoder.input_cnn.cnn_short.weight",
@@ -131,14 +131,17 @@ impl ModelInterface for RTCNNTFModel {
             vec!["rt_encoder.attn_sum.attn.0.weight"],
             &device,
         )?;
-        
 
         let rt_decoder = DecoderLinear::from_varstore(
             &var_store,
             128,
             1,
-            vec!["rt_decoder.nn.0.weight", "rt_decoder.nn.1.weight", "rt_decoder.nn.2.weight"],
-            vec!["rt_decoder.nn.0.bias", "rt_decoder.nn.2.bias"]
+            vec![
+                "rt_decoder.nn.0.weight",
+                "rt_decoder.nn.1.weight",
+                "rt_decoder.nn.2.weight",
+            ],
+            vec!["rt_decoder.nn.0.bias", "rt_decoder.nn.2.bias"],
         )?;
 
         Ok(Self {
@@ -158,12 +161,12 @@ impl ModelInterface for RTCNNTFModel {
         let aa_indices_out = xs.i((.., .., 0))?;
         let (mean, min, max) = get_tensor_stats(&aa_indices_out)?;
         log::debug!("[RTCNNTFModel] aa_indices_out stats - min: {min}, max: {max}, mean: {mean}");
-        let mod_x_out = xs.i((.., .., 1..1 + MOD_FEATURE_SIZE))?;    
+        let mod_x_out = xs.i((.., .., 1..1 + MOD_FEATURE_SIZE))?;
 
         let x = self.rt_encoder.forward(&aa_indices_out, &mod_x_out)?;
-        
+
         let x = self.dropout.forward(&x, self.is_training)?;
-        
+
         let x = self.rt_decoder.forward(&x)?;
 
         Ok(x.squeeze(1)?)
@@ -203,7 +206,10 @@ impl ModelInterface for RTCNNTFModel {
     }
 
     fn get_min_pred_intensity(&self) -> f32 {
-        unimplemented!("Method not implemented for architecture: {}", self.model_arch())
+        unimplemented!(
+            "Method not implemented for architecture: {}",
+            self.model_arch()
+        )
     }
 
     fn get_mut_varmap(&mut self) -> &mut VarMap {
@@ -213,7 +219,10 @@ impl ModelInterface for RTCNNTFModel {
     /// Print a summary of the model's constants.
     fn print_summary(&self) {
         println!("RTModel Summary:");
-        println!("AA Embedding Size: {}", self.constants.aa_embedding_size.unwrap());
+        println!(
+            "AA Embedding Size: {}",
+            self.constants.aa_embedding_size.unwrap()
+        );
         println!("Charge Factor: {:?}", self.constants.charge_factor);
         println!("Instruments: {:?}", self.constants.instruments);
         println!("Max Instrument Num: {}", self.constants.max_instrument_num);
@@ -225,8 +234,4 @@ impl ModelInterface for RTCNNTFModel {
     fn print_weights(&self) {
         todo!("Implement print_weights for RTCNNTFModel");
     }
-
-
 }
-
-

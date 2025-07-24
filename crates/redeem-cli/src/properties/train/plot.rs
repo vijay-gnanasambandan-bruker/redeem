@@ -1,20 +1,40 @@
-use plotly::{Layout, Plot, Scatter};
 use plotly::common::{Fill, Mode, Title};
-use redeem_properties::utils::stats::{TrainingStepMetrics, TrainingPhase};
+use plotly::{Layout, Plot, Scatter};
+use redeem_properties::utils::stats::{TrainingPhase, TrainingStepMetrics};
 
+pub fn plot_losses(epoch_losses: &[(usize, f32, Option<f32>, f32, Option<f32>)]) -> Plot {
+    let epochs: Vec<_> = epoch_losses
+        .iter()
+        .map(|(e, _, _, _, _)| *e as f64)
+        .collect();
 
-pub fn plot_losses(
-    epoch_losses: &[(usize, f32, Option<f32>, f32, Option<f32>)]
-) -> Plot {
-    let epochs: Vec<_> = epoch_losses.iter().map(|(e, _, _, _, _)| *e as f64).collect();
+    let train_mean: Vec<_> = epoch_losses
+        .iter()
+        .map(|(_, m, _, _, _)| *m as f64)
+        .collect();
+    let train_std: Vec<_> = epoch_losses
+        .iter()
+        .map(|(_, _, _, std, _)| *std as f64)
+        .collect();
+    let train_upper: Vec<_> = train_mean
+        .iter()
+        .zip(&train_std)
+        .map(|(m, s)| m + s)
+        .collect();
+    let train_lower: Vec<_> = train_mean
+        .iter()
+        .zip(&train_std)
+        .map(|(m, s)| m - s)
+        .collect();
 
-    let train_mean: Vec<_> = epoch_losses.iter().map(|(_, m, _, _, _)| *m as f64).collect();
-    let train_std: Vec<_> = epoch_losses.iter().map(|(_, _, _, std, _)| *std as f64).collect();
-    let train_upper: Vec<_> = train_mean.iter().zip(&train_std).map(|(m, s)| m + s).collect();
-    let train_lower: Vec<_> = train_mean.iter().zip(&train_std).map(|(m, s)| m - s).collect();
-
-    let val_mean: Vec<_> = epoch_losses.iter().map(|(_, _, val, _, _)| val.unwrap_or(f32::NAN) as f64).collect();
-    let val_std: Vec<_> = epoch_losses.iter().map(|(_, _, _, _, val_std)| val_std.unwrap_or(0.0) as f64).collect();
+    let val_mean: Vec<_> = epoch_losses
+        .iter()
+        .map(|(_, _, val, _, _)| val.unwrap_or(f32::NAN) as f64)
+        .collect();
+    let val_std: Vec<_> = epoch_losses
+        .iter()
+        .map(|(_, _, _, _, val_std)| val_std.unwrap_or(0.0) as f64)
+        .collect();
     let val_upper: Vec<_> = val_mean.iter().zip(&val_std).map(|(m, s)| m + s).collect();
     let val_lower: Vec<_> = val_mean.iter().zip(&val_std).map(|(m, s)| m - s).collect();
 
@@ -42,7 +62,7 @@ pub fn plot_losses(
             .mode(Mode::Lines)
             .fill(Fill::ToSelf)
             .line(plotly::common::Line::new().width(0.0))
-            .fill_color("rgba(31, 119, 180, 0.2)")
+            .fill_color("rgba(31, 119, 180, 0.2)"),
     );
 
     // Validation loss line
@@ -67,20 +87,18 @@ pub fn plot_losses(
             .mode(Mode::Lines)
             .fill(Fill::ToSelf)
             .line(plotly::common::Line::new().width(0.0))
-            .fill_color("rgba(255, 127, 14, 0.2)")
+            .fill_color("rgba(255, 127, 14, 0.2)"),
     );
 
     plot.set_layout(
         Layout::new()
             .title("Training and Validation Loss Over Epochs")
             .x_axis(plotly::layout::Axis::new().title("Epoch"))
-            .y_axis(plotly::layout::Axis::new().title("Loss"))
+            .y_axis(plotly::layout::Axis::new().title("Loss")),
     );
 
     plot
 }
-
-
 
 /// Plot a single training metric (e.g. loss, learning rate, accuracy) over steps.
 pub fn plot_training_metric(
@@ -139,7 +157,7 @@ pub fn plot_training_metric(
         Layout::new()
             .title(title)
             .x_axis(plotly::layout::Axis::new().title(x_title))
-            .y_axis(plotly::layout::Axis::new().title(y_title))
+            .y_axis(plotly::layout::Axis::new().title(y_title)),
     );
 
     plot

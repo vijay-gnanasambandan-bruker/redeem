@@ -1,10 +1,12 @@
 //! Univariate feature selection methods following scikit-learn's API.
-//! 
+//!
 //! See: https://scikit-learn.org/stable/modules/feature_selection.html#univariate-feature-selection
 
 use ndarray::{Array1, Array2, ArrayBase, Axis, Data, Ix2};
-use statrs::{distribution::{Continuous, ContinuousCDF, FisherSnedecor}, statistics::Statistics};
-
+use statrs::{
+    distribution::{Continuous, ContinuousCDF, FisherSnedecor},
+    statistics::Statistics,
+};
 
 /// Compute row-wise (squared) Euclidean norms of a 2D array.
 ///
@@ -50,7 +52,6 @@ where
     norms
 }
 
-
 /// Compute Pearson's r for each feature and the target.
 ///
 /// Pearson's r is also known as the Pearson correlation coefficient.
@@ -82,7 +83,12 @@ where
 /// let correlation_coefficients = r_regression(&x, &y, true, true);
 /// println!("Correlation coefficients: {:?}", correlation_coefficients);
 /// ```
-pub fn r_regression(x: &Array2<f64>, y: &Array1<f64>, center: bool, force_finite: bool) -> Array1<f64> {
+pub fn r_regression(
+    x: &Array2<f64>,
+    y: &Array1<f64>,
+    center: bool,
+    force_finite: bool,
+) -> Array1<f64> {
     let n_samples = x.nrows() as f64;
     let n_features = x.ncols();
 
@@ -132,7 +138,6 @@ pub fn r_regression(x: &Array2<f64>, y: &Array1<f64>, center: bool, force_finite
     correlation_coefficient
 }
 
-
 /// Univariate linear regression tests returning F-statistic and p-values.
 ///
 /// This function performs a quick linear model test for assessing
@@ -163,7 +168,12 @@ pub fn r_regression(x: &Array2<f64>, y: &Array1<f64>, center: bool, force_finite
 /// println!("F-statistic: {:?}", f_statistic);
 /// println!("p-values: {:?}", p_values);
 /// ```
-pub fn f_regression(x: &Array2<f64>, y: &Array1<f64>, center: bool, force_finite: bool) -> (Array1<f64>, Array1<f64>) {
+pub fn f_regression(
+    x: &Array2<f64>,
+    y: &Array1<f64>,
+    center: bool,
+    force_finite: bool,
+) -> (Array1<f64>, Array1<f64>) {
     let correlation_coefficient = r_regression(x, y, center, force_finite);
     let deg_of_freedom = y.len() as f64 - if center { 2.0 } else { 1.0 };
 
@@ -196,7 +206,6 @@ pub fn f_regression(x: &Array2<f64>, y: &Array1<f64>, center: bool, force_finite
 
     (f_statistic, p_values)
 }
-
 
 /// A struct for selecting the k best features based on F-scores.
 ///
@@ -233,25 +242,32 @@ impl SelectKBest {
     /// # Returns
     ///
     /// A vector of indices corresponding to the k best features.
-    pub fn fit(&self, x: &Array2<f64>, y: &Array1<f64>, center: Option<bool>, force_finite: Option<bool>) -> Vec<usize> {
+    pub fn fit(
+        &self,
+        x: &Array2<f64>,
+        y: &Array1<f64>,
+        center: Option<bool>,
+        force_finite: Option<bool>,
+    ) -> Vec<usize> {
         let center = center.unwrap_or(true);
         let force_finite = force_finite.unwrap_or(true);
-    
+
         let (f_scores, _) = f_regression(x, y, center, force_finite);
 
         // Create a vector of indices
         let mut indices: Vec<usize> = (0..f_scores.len()).collect();
-        
+
         // Sort indices based on scores in ascending order using a stable sort
-        indices.sort_by(|&i, &j| f_scores[i].partial_cmp(&f_scores[j]).unwrap_or(std::cmp::Ordering::Equal));
-    
+        indices.sort_by(|&i, &j| {
+            f_scores[i]
+                .partial_cmp(&f_scores[j])
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
+
         // Select top k features by taking the last k elements
         indices.iter().rev().take(self.k).cloned().collect()
     }
-    
 }
-
-
 
 #[cfg(test)]
 mod tests {
@@ -262,18 +278,16 @@ mod tests {
     fn test_select_k_best() {
         // Create a feature matrix with 5 features and 10 samples
         // Features: [random, collinear with target, constant, collinear with feature 1, noise]
-        let x = Array2::from_shape_vec((10, 5), vec![
-            0.1,  1.0, 5.0,  0.2, -0.3,
-            0.4, -1.0, 5.0,  0.8,  0.1,
-            0.6,  1.0, 5.0,  1.2,  0.2,
-            0.9, -1.0, 5.0,  1.8, -0.1,
-            1.2,  1.0, 5.0,  2.4,  0.3,
-            1.5, -1.0, 5.0,  3.0,  0.0,
-            1.8,  1.0, 5.0,  3.6, -0.2,
-            2.1, -1.0, 5.0,  4.2,  0.4,
-            2.4,  1.0, 5.0,  4.8, -0.1,
-            2.7, -1.0, 5.0,  5.4,  0.2,
-        ]).unwrap();
+        let x = Array2::from_shape_vec(
+            (10, 5),
+            vec![
+                0.1, 1.0, 5.0, 0.2, -0.3, 0.4, -1.0, 5.0, 0.8, 0.1, 0.6, 1.0, 5.0, 1.2, 0.2, 0.9,
+                -1.0, 5.0, 1.8, -0.1, 1.2, 1.0, 5.0, 2.4, 0.3, 1.5, -1.0, 5.0, 3.0, 0.0, 1.8, 1.0,
+                5.0, 3.6, -0.2, 2.1, -1.0, 5.0, 4.2, 0.4, 2.4, 1.0, 5.0, 4.8, -0.1, 2.7, -1.0, 5.0,
+                5.4, 0.2,
+            ],
+        )
+        .unwrap();
 
         // Create a target vector perfectly correlated with the second feature
         let y = Array1::from_vec(vec![1.0, -1.0, 1.0, -1.0, 1.0, -1.0, 1.0, -1.0, 1.0, -1.0]);
@@ -292,9 +306,8 @@ mod tests {
         // Print selected features for debugging
         println!("Selected features:");
         for i in selected_indices.iter() {
-            println!("Feature {:?}: {:?}",i, x.column(*i));
+            println!("Feature {:?}: {:?}", i, x.column(*i));
         }
-        
 
         // Check that we got 3 indices
         assert_eq!(selected_indices.len(), 3);
@@ -303,13 +316,18 @@ mod tests {
         assert!(selected_indices.iter().all(|&idx| idx < 5));
 
         // Check that the indices are unique
-        assert!(selected_indices.iter().collect::<std::collections::HashSet<_>>().len() == 3);
+        assert!(
+            selected_indices
+                .iter()
+                .collect::<std::collections::HashSet<_>>()
+                .len()
+                == 3
+        );
 
         // The second feature (index 1) should definitely be selected as it's perfectly correlated with the target
         assert!(selected_indices.contains(&1));
 
         // The third feature (index 2) should not be selected as it's constant
         assert!(!selected_indices.contains(&2));
-
     }
 }

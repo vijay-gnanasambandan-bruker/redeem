@@ -1,8 +1,8 @@
+use anyhow::{Context, Result};
+use clap::ArgMatches;
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::PathBuf;
-use clap::ArgMatches;
-use anyhow::{Context, Result};
 
 use crate::properties::util::validate_tsv_or_csv_file;
 
@@ -53,13 +53,15 @@ impl PropertyInferenceConfig {
                     } else {
                         log::warn!(
                             "Config Invalid value for '{}', using default: {:?}",
-                            stringify!($field), config.$field
+                            stringify!($field),
+                            config.$field
                         );
                     }
                 } else {
                     log::warn!(
                         "Config Missing field '{}', using default: {:?}",
-                        stringify!($field), config.$field
+                        stringify!($field),
+                        config.$field
                     );
                 }
             };
@@ -95,4 +97,3 @@ impl PropertyInferenceConfig {
         Ok(config)
     }
 }
-

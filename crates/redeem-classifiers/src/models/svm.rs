@@ -1,8 +1,8 @@
 use linfa::dataset::Pr;
 use linfa::traits::Predict;
 use linfa::Dataset;
-use linfa_svm::SvmParams;
 use linfa_svm::Svm;
+use linfa_svm::SvmParams;
 use ndarray::{Array1, Array2};
 
 use crate::models::utils::{ModelParams, ModelType};
@@ -11,7 +11,12 @@ use crate::psm_scorer::SemiSupervisedModel;
 pub struct SVMClassifier {
     model: Option<Svm<f64, Pr>>,
     params: ModelParams,
-    predictions: Option<linfa::DatasetBase<ndarray::ArrayBase<ndarray::OwnedRepr<f64>, ndarray::Dim<[usize; 2]>>, ndarray::ArrayBase<ndarray::OwnedRepr<Pr>, ndarray::Dim<[usize; 1]>>>>,
+    predictions: Option<
+        linfa::DatasetBase<
+            ndarray::ArrayBase<ndarray::OwnedRepr<f64>, ndarray::Dim<[usize; 2]>>,
+            ndarray::ArrayBase<ndarray::OwnedRepr<Pr>, ndarray::Dim<[usize; 1]>>,
+        >,
+    >,
 }
 
 impl SVMClassifier {
@@ -76,7 +81,9 @@ impl SemiSupervisedModel for SVMClassifier {
             model = match kernel.as_str() {
                 "linear" => model.linear_kernel(),
                 "gauss" => model.gaussian_kernel(*gaussian_kernel_eps),
-                "poly" => model.polynomial_kernel(*polynomial_kernel_constant, *polynomial_kernel_degree),
+                "poly" => {
+                    model.polynomial_kernel(*polynomial_kernel_constant, *polynomial_kernel_degree)
+                }
                 _ => {
                     eprintln!("Error: Unsupported kernel type: {}. Valid options are: linear, gauss, poly", kernel);
                     return; // Exit early if the kernel type is unsupported
@@ -85,7 +92,9 @@ impl SemiSupervisedModel for SVMClassifier {
 
             // Fit the model
             log::trace!("Fitting model...");
-            self.model = Some(<SvmParams<f64, Pr> as linfa::traits::Fit<_, _, _>>::fit(&model, &dataset).unwrap());
+            self.model = Some(
+                <SvmParams<f64, Pr> as linfa::traits::Fit<_, _, _>>::fit(&model, &dataset).unwrap(),
+            );
             log::trace!("Model fitted successfully.");
         } else {
             eprintln!("Error: Expected ModelType::SVM but got another type.");
@@ -111,8 +120,8 @@ impl SemiSupervisedModel for SVMClassifier {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use linfa::DatasetBase;
     use linfa::metrics::ToConfusionMatrix;
+    use linfa::DatasetBase;
     use ndarray::{Array1, Array2};
 
     #[test]
@@ -174,7 +183,9 @@ mod tests {
         let ground_truth = DatasetBase::new(x.clone(), y);
 
         // Compute the confusion matrix using fully qualified syntax
-        let cm = <Array1<bool> as ToConfusionMatrix<bool, _>>::confusion_matrix(&preds, &ground_truth).unwrap();
+        let cm =
+            <Array1<bool> as ToConfusionMatrix<bool, _>>::confusion_matrix(&preds, &ground_truth)
+                .unwrap();
 
         println!("Confusion Matrix: {:?}", cm);
 

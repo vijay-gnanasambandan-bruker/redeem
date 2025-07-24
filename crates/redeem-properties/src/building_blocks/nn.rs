@@ -1,8 +1,8 @@
 use candle_core::{Device, IndexOp, Result, Tensor};
 use candle_nn::init::{FanInOut, NonLinearity, NormalOrUniform};
+use candle_nn::ops::softmax;
 use candle_nn::{Dropout, Init, LayerNorm, Linear, Module, VarBuilder};
 use candle_transformers::models::bert::{BertEncoder, Config};
-use candle_nn::ops::softmax;
 use std::env::var;
 use std::ops::{Deref, DerefMut};
 use std::sync::Arc;
@@ -16,7 +16,9 @@ pub struct ModuleList {
 
 impl ModuleList {
     pub fn new() -> Self {
-        Self { modules: Vec::new() }
+        Self {
+            modules: Vec::new(),
+        }
     }
 
     pub fn push<M: Module + 'static>(&mut self, module: M) {
@@ -74,7 +76,6 @@ impl Module for BertEncoderModule {
     }
 }
 
-
 /// A minimal Transformer encoder layer with multi-head self-attention, feedforward block,
 /// dropout, and optional sinusoidal positional encoding and padding mask support.
 #[derive(Debug, Clone)]
@@ -110,12 +111,24 @@ impl TransformerEncoder {
         }
         let pos_encoding = create_sinusoidal_encoding(max_len, model_dim, device)?;
         let dropout = Dropout::new(dropout_prob);
-        Ok(Self { layers, pos_encoding, dropout, model_dim })
+        Ok(Self {
+            layers,
+            pos_encoding,
+            dropout,
+            model_dim,
+        })
     }
 
-    pub fn forward_with_mask(&self, x: &Tensor, padding_mask: Option<&Tensor>, training: bool) -> Result<Tensor> {
+    pub fn forward_with_mask(
+        &self,
+        x: &Tensor,
+        padding_mask: Option<&Tensor>,
+        training: bool,
+    ) -> Result<Tensor> {
         let (b, t, _) = x.dims3()?;
-        let pe = self.pos_encoding.i((..t, ..))?
+        let pe = self
+            .pos_encoding
+            .i((..t, ..))?
             .unsqueeze(0)?
             .broadcast_as((b, t, self.pos_encoding.dim(1)?))?;
 
@@ -154,11 +167,13 @@ impl TransformerEncoderLayer {
             norm1: candle_nn::layer_norm(
                 model_dim,
                 candle_nn::LayerNormConfig::default(),
-                varbuilder.pp("norm1"))?,
+                varbuilder.pp("norm1"),
+            )?,
             norm2: candle_nn::layer_norm(
                 model_dim,
                 candle_nn::LayerNormConfig::default(),
-                varbuilder.pp("norm2"))?,
+                varbuilder.pp("norm2"),
+            )?,
             dropout1: Dropout::new(dropout_prob),
             dropout2: Dropout::new(dropout_prob),
         })
@@ -170,11 +185,12 @@ impl TransformerEncoderLayer {
         let tmp2 = x.broadcast_add(&tmp)?;
         let x = self.norm1.forward(&tmp2)?;
         let ff = self.ff.forward(&x)?;
-        let result = self.norm2.forward(&x.broadcast_add(&self.dropout2.forward(&ff, training)?)?)?;
+        let result = self
+            .norm2
+            .forward(&x.broadcast_add(&self.dropout2.forward(&ff, training)?)?)?;
         Ok(result)
     }
 }
-
 
 #[derive(Debug, Clone)]
 pub struct MultiHeadAttention {
@@ -207,17 +223,23 @@ impl MultiHeadAttention {
     pub fn forward(&self, x: &Tensor, mask: Option<&Tensor>) -> Result<Tensor> {
         let (b, t, _) = x.dims3()?;
 
-        let q = self.proj_q.forward(x)?
+        let q = self
+            .proj_q
+            .forward(x)?
             .reshape((b, t, self.num_heads, self.head_dim))?
             .transpose(1, 2)?
             .contiguous()?;
 
-        let k = self.proj_k.forward(x)?
+        let k = self
+            .proj_k
+            .forward(x)?
             .reshape((b, t, self.num_heads, self.head_dim))?
             .transpose(1, 2)?
             .contiguous()?;
 
-        let v = self.proj_v.forward(x)?
+        let v = self
+            .proj_v
+            .forward(x)?
             .reshape((b, t, self.num_heads, self.head_dim))?
             .transpose(1, 2)?
             .contiguous()?;
@@ -228,7 +250,10 @@ impl MultiHeadAttention {
         let mut scores = match q.matmul(&k_t) {
             Ok(s) => (s / (self.head_dim as f64).sqrt())?,
             Err(e) => {
-                log::error!("[MultiHeadAttention] Failed during matmul for scores: {}", e);
+                log::error!(
+                    "[MultiHeadAttention] Failed during matmul for scores: {}",
+                    e
+                );
                 return Err(e.into());
             }
         };
@@ -254,9 +279,14 @@ impl MultiHeadAttention {
         };
 
         let context = match attn.matmul(&v) {
-            Ok(ctx) => ctx.transpose(1, 2)?.reshape((b, t, self.num_heads * self.head_dim))?,
+            Ok(ctx) => ctx
+                .transpose(1, 2)?
+                .reshape((b, t, self.num_heads * self.head_dim))?,
             Err(e) => {
-                log::error!("[MultiHeadAttention] Failed during attention context computation: {}", e);
+                log::error!(
+                    "[MultiHeadAttention] Failed during attention context computation: {}",
+                    e
+                );
                 return Err(e.into());
             }
         };
@@ -286,7 +316,11 @@ impl FeedForward {
 }
 
 /// Generate sinusoidal positional encoding like in "Attention is All You Need".
-pub fn create_sinusoidal_encoding(seq_len: usize, model_dim: usize, device: &Device) -> Result<Tensor> {
+pub fn create_sinusoidal_encoding(
+    seq_len: usize,
+    model_dim: usize,
+    device: &Device,
+) -> Result<Tensor> {
     let mut pe = vec![0f32; seq_len * model_dim];
     for pos in 0..seq_len {
         for i in 0..model_dim {
@@ -296,4 +330,3 @@ pub fn create_sinusoidal_encoding(seq_len: usize, model_dim: usize, device: &Dev
     }
     Tensor::from_vec(pe, (seq_len, model_dim), device)
 }
-

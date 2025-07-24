@@ -8,10 +8,11 @@ use std::sync::Arc;
 use crate::building_blocks::building_blocks::{
     DecoderLinear, Encoder26aaModChargeCnnTransformerAttnSum, MOD_FEATURE_SIZE,
 };
-use crate::models::model_interface::{ModelInterface, PropertyType, load_tensors_from_model, create_var_map};
+use crate::models::model_interface::{
+    create_var_map, load_tensors_from_model, ModelInterface, PropertyType,
+};
 use crate::utils::peptdeep_utils::{
-    load_mod_to_feature_arc,
-    parse_model_constants, ModelConstants,
+    load_mod_to_feature_arc, parse_model_constants, ModelConstants,
 };
 use crate::utils::utils::get_tensor_stats;
 
@@ -47,7 +48,7 @@ impl ModelInterface for CCSCNNTFModel {
     }
 
     fn model_arch(&self) -> &'static str {
-        "ccs_cnn_tf"   
+        "ccs_cnn_tf"
     }
 
     fn new_untrained(device: Device) -> Result<Self> {
@@ -57,14 +58,14 @@ impl ModelInterface for CCSCNNTFModel {
         log::trace!("[CCSCNNTFModel] Initializing ccs_encoder");
         let ccs_encoder = Encoder26aaModChargeCnnTransformerAttnSum::new(
             &varbuilder.pp("ccs_encoder"),
-            8,     // mod_hidden_dim
-            128,   // hidden_dim
-            256,   // ff_dim
-            4,     // num_heads
-            2,     // num_layers
-            100,   // max_len
-            0.1,   // dropout_prob
-            &device
+            8,   // mod_hidden_dim
+            128, // hidden_dim
+            256, // ff_dim
+            4,   // num_heads
+            2,   // num_layers
+            100, // max_len
+            0.1, // dropout_prob
+            &device,
         )?;
 
         log::trace!("[CCSCNNTFModel] Initializing ccs_decoder");
@@ -110,13 +111,13 @@ impl ModelInterface for CCSCNNTFModel {
 
         let ccs_encoder = Encoder26aaModChargeCnnTransformerAttnSum::from_varstore(
             &var_store,
-            8,      // mod_hidden_dim
-            128,    // hidden_dim
-            256,    // ff_dim
-            4,      // num_heads
-            2,      // num_layers
-            100,    // max_len (set appropriately for your sequence length)
-            0.1,    // dropout_prob
+            8,   // mod_hidden_dim
+            128, // hidden_dim
+            256, // ff_dim
+            4,   // num_heads
+            2,   // num_layers
+            100, // max_len (set appropriately for your sequence length)
+            0.1, // dropout_prob
             vec!["ccs_encoder.mod_nn.nn.weight"],
             vec![
                 "ccs_encoder.input_cnn.cnn_short.weight",
@@ -132,14 +133,17 @@ impl ModelInterface for CCSCNNTFModel {
             vec!["ccs_encoder.attn_sum.attn.0.weight"],
             &device,
         )?;
-        
 
         let ccs_decoder = DecoderLinear::from_varstore(
             &var_store,
             129,
             1,
-            vec!["ccs_decoder.nn.0.weight", "ccs_decoder.nn.1.weight", "ccs_decoder.nn.2.weight"],
-            vec!["ccs_decoder.nn.0.bias", "ccs_decoder.nn.2.bias"]
+            vec![
+                "ccs_decoder.nn.0.weight",
+                "ccs_decoder.nn.1.weight",
+                "ccs_decoder.nn.2.weight",
+            ],
+            vec!["ccs_decoder.nn.0.bias", "ccs_decoder.nn.2.bias"],
         )?;
 
         Ok(Self {
@@ -165,21 +169,21 @@ impl ModelInterface for CCSCNNTFModel {
         let aa_indices_out = xs.i((.., .., 0))?;
         let (mean, min, max) = get_tensor_stats(&aa_indices_out)?;
         log::debug!("[CCSCNNTFModel] aa_indices_out stats - min: {min}, max: {max}, mean: {mean}");
-        
+
         let mod_x_out = xs.i((.., .., start_mod_x..start_mod_x + MOD_FEATURE_SIZE))?;
         let charge_out = xs.i((.., 0..1, start_charge..start_charge + 1))?;
-        let charge_out = charge_out.squeeze(2)?;         
-        
-        let x = self.ccs_encoder.forward(&aa_indices_out, &mod_x_out, &charge_out)?;
-       
+        let charge_out = charge_out.squeeze(2)?;
+
+        let x = self
+            .ccs_encoder
+            .forward(&aa_indices_out, &mod_x_out, &charge_out)?;
 
         let x = self.dropout.forward(&x, self.is_training)?;
-        
 
         let x = Tensor::cat(&[x, charge_out], 1)?;
 
         let x = self.ccs_decoder.forward(&x)?;
-        
+
         Ok(x.squeeze(1)?)
     }
 
@@ -217,7 +221,10 @@ impl ModelInterface for CCSCNNTFModel {
     }
 
     fn get_min_pred_intensity(&self) -> f32 {
-        unimplemented!("Method not implemented for architecture: {}", self.model_arch())
+        unimplemented!(
+            "Method not implemented for architecture: {}",
+            self.model_arch()
+        )
     }
 
     fn get_mut_varmap(&mut self) -> &mut VarMap {
@@ -227,7 +234,10 @@ impl ModelInterface for CCSCNNTFModel {
     /// Print a summary of the model's constants.
     fn print_summary(&self) {
         println!("CCSModel Summary:");
-        println!("AA Embedding Size: {}", self.constants.aa_embedding_size.unwrap());
+        println!(
+            "AA Embedding Size: {}",
+            self.constants.aa_embedding_size.unwrap()
+        );
         println!("Charge Factor: {:?}", self.constants.charge_factor);
         println!("Instruments: {:?}", self.constants.instruments);
         println!("Max Instrument Num: {}", self.constants.max_instrument_num);
@@ -239,19 +249,15 @@ impl ModelInterface for CCSCNNTFModel {
     fn print_weights(&self) {
         todo!("Implement print_weights for CCSCNNTFModel");
     }
-
-
 }
-
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::models::model_interface::ModelInterface;
     use crate::models::ccs_cnn_tf_model::CCSCNNTFModel;
+    use crate::models::model_interface::ModelInterface;
     use candle_core::Device;
     use std::path::PathBuf;
-
 
     #[test]
     fn test_encode_peptides() {
@@ -259,14 +265,18 @@ mod tests {
         let model = Box::new(CCSCNNTFModel::new_untrained(device.clone()).unwrap());
 
         let seq = Arc::from(b"AGHCEWQMKYR".to_vec().into_boxed_slice());
-        let mods =
-            Arc::from(b"Acetyl@Protein N-term;Carbamidomethyl@C;Oxidation@M".to_vec().into_boxed_slice());
+        let mods = Arc::from(
+            b"Acetyl@Protein N-term;Carbamidomethyl@C;Oxidation@M"
+                .to_vec()
+                .into_boxed_slice(),
+        );
         let mod_sites = Arc::from(b"0;4;8".to_vec().into_boxed_slice());
         let charge = Some(2);
         let nce = Some(20);
         let instrument = Some(Arc::from(b"QE".to_vec().into_boxed_slice()));
 
-        let result = model.encode_peptide(&seq, &mods, &mod_sites, charge, nce, instrument.as_ref());
+        let result =
+            model.encode_peptide(&seq, &mods, &mod_sites, charge, nce, instrument.as_ref());
 
         println!("{:?}", result);
         assert!(result.is_ok());

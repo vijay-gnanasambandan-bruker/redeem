@@ -1,13 +1,11 @@
 use serde::{Deserialize, Serialize};
 
-
-
 #[derive(Deserialize, Serialize, Debug, Clone)]
 pub struct ModelParams {
-    pub learning_rate: f32, 
+    pub learning_rate: f32,
 
     #[serde(flatten)]
-    pub model_type: ModelType, 
+    pub model_type: ModelType,
 }
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
@@ -45,7 +43,7 @@ impl Default for ModelType {
             num_boost_round: 3,
             debug: false,
             training_optimization_level: 2,
-            loss_type:"LogLikelyhood".to_string(),
+            loss_type: "LogLikelyhood".to_string(),
         }
     }
 }
@@ -99,7 +97,7 @@ impl Default for ModelParams {
                 num_boost_round: 50,
                 debug: false,
                 training_optimization_level: 2,
-                loss_type:"LogLikelyhood".to_string(),
+                loss_type: "LogLikelyhood".to_string(),
             },
         }
     }
