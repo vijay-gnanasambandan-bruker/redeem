@@ -1,18 +1,21 @@
-use std::collections::HashMap;
-
 use ndarray::{Array2, ArrayView1};
 use rayon::prelude::*;
 use sage_core::ml::matrix::Matrix;
+use std::collections::HashMap;
+use std::env;
+use std::fs::File;
+use std::path::PathBuf;
 use xgboost::{
     parameters::{
         learning::{EvaluationMetric, LearningTaskParametersBuilder, Metrics, Objective},
         tree::{TreeBoosterParametersBuilder, TreeMethod},
         BoosterParametersBuilder, BoosterType, TrainingParametersBuilder,
     },
-    Booster, DMatrix,
+    Booster, DMatrix, FeatureMap,
 };
 
 use sage_core::scoring::Feature;
+use std::io::Write;
 
 use crate::models::utils::{ModelParams, ModelType};
 use crate::psm_scorer::SemiSupervisedModel;
@@ -169,8 +172,23 @@ impl SemiSupervisedModel for XGBoostClassifier {
                 .build()
                 .unwrap();
 
+            let xg_boot_model = Booster::train(&training_params).unwrap();
+
+            let mut path: PathBuf = env::temp_dir();
+            path.push("fmap.txt");
+            let future_map = FeatureMap::from_file(path);
+            let fmap = match &future_map {
+                Ok(feature_map) => Some(feature_map),
+                Err(e) => None,
+            };
+
+            let dump = xg_boot_model.dump_model(true, fmap).unwrap();
+            println!("{}", dump);
+            let mut file = File::create("xgboost_dump.bin").unwrap();
+            file.write(dump.as_bytes()).unwrap();
+
             // Train the model and store the booster
-            self.booster = Some(Booster::train(&training_params).unwrap());
+            self.booster = Some(xg_boot_model);
         } else {
             eprintln!("Error: Expected ModelType::XGBoost but got another type.");
         }

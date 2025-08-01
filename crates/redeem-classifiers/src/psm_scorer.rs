@@ -1,9 +1,11 @@
-use std::f64;
-
 use ndarray::{Array1, Array2};
 use rand::seq::SliceRandom;
 use rand::thread_rng;
 use serde::{Deserialize, Serialize};
+use std::fs::File;
+use std::io::Write;
+use std::path::PathBuf;
+use std::{env, f64};
 
 use crate::data_handling::{Experiment, PsmMetadata};
 
@@ -354,6 +356,19 @@ impl SemiSupervisedLearner {
         let mut experiment = Experiment::new(x.clone(), y.clone(), psm_metadata.clone())?;
 
         experiment.log_input_data_summary();
+
+        let mut fmap = String::new();
+
+        for (id, feature_name) in experiment.psm_metadata.feature_names.iter().enumerate() {
+            let content = format!("{id}\t{feature_name}\tq\n");
+            fmap.push_str(&*content);
+        }
+
+        let mut path: PathBuf = env::temp_dir();
+        path.push("fmap.txt");
+        println!("path: {:?}", path.display());
+        let mut file = File::create(path)?;
+        file.write_all(fmap.as_bytes())?;
 
         // Get initial best feature
         let (_best_feat, _best_positives, mut new_labels, best_desc, _best_feature_scores) =
