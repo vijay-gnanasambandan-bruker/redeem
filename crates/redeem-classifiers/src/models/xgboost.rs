@@ -183,7 +183,6 @@ impl SemiSupervisedModel for XGBoostClassifier {
             };
 
             let dump = xg_boot_model.dump_model(true, fmap).unwrap();
-            println!("{}", dump);
             let mut file = File::create("xgboost_dump.bin").unwrap();
             file.write(dump.as_bytes()).unwrap();
 
